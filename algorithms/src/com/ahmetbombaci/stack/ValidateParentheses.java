@@ -1,4 +1,4 @@
-package com.ahmetbombaci.validateParentheses;
+package com.ahmetbombaci.stack;
 
 import java.util.Stack;
 
