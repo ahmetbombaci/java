@@ -32,10 +32,10 @@ public class ShortestReach {
         	}
         	else {
                 Queue<Node> bfsNodeQueue = new LinkedList<>();
-        		
-        		bfsNodeQueue.add(currNode);
+
         		currNode.setDistance(0);
         		currNode.setVisited(true);
+        		bfsNodeQueue.add(currNode);
         		
         		while(!bfsNodeQueue.isEmpty()) {
         			Node r = bfsNodeQueue.remove();
