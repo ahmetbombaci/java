@@ -1,5 +1,7 @@
 package com.ahmetbombaci.messenger.resources;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 
 import javax.ws.rs.BeanParam;
@@ -12,14 +14,20 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.UriInfo;
+
+import com.ahmetbombaci.messenger.model.Link;
 import com.ahmetbombaci.messenger.model.Message;
 import com.ahmetbombaci.messenger.resources.beans.MessageFilterBean;
 import com.ahmetbombaci.messenger.service.MessageService;
 
 @Path("/messages")
 @Consumes(MediaType.APPLICATION_JSON)
-@Produces(MediaType.APPLICATION_JSON)
+@Produces(value = { MediaType.APPLICATION_JSON, MediaType.TEXT_XML })  //support multiple content type
 public class MessageResource {
 	
 	MessageService messageService = new MessageService();
@@ -46,13 +54,53 @@ public class MessageResource {
 
 	@GET
 	@Path("/{messageId}")
-	public Message getMessage(@PathParam("messageId") long id) {
-		return messageService.getMessage(id);
+	public Message getMessage(@PathParam("messageId") long id, @Context UriInfo uriInfo) {
+		Message message = messageService.getMessage(id);
+		message.addLink(getUriForSelf(uriInfo, message), "self");
+		message.addLink(getUriForProfile(uriInfo, message), "profile");
+		message.addLink(getUriForComments(uriInfo, message), "comments");
+		return message;
+	}
+
+
+	private String getUriForComments(UriInfo uriInfo, Message message) {
+		String url = uriInfo.getBaseUriBuilder()				//http://localhost:8080/messenger/webapi
+				  .path(MessageResource.class)							//										/messages
+				  .path(MessageResource.class, "getCommentResource")	//												 /{messageId}/comments
+				  .path(CommentResource.class)							//												 					  /
+				  .resolveTemplate("messageId", message.getId()) //replaces {messageId} with value
+				  .build()
+				  .toString();
+				return url;
+	}
+
+	private String getUriForProfile(UriInfo uriInfo, Message message) {
+		String url = uriInfo.getBaseUriBuilder()				//http://localhost:8080/messenger/webapi
+				  .path(ProfileResource.class)							//										/profiles
+				  .path(message.getAuthor())							//												 /ahmet
+				  .build()
+				  .toString();
+				return url;
+	}
+
+	private String getUriForSelf(UriInfo uriInfo, Message message) {
+		String url = uriInfo.getBaseUriBuilder()				//http://localhost:8080/messenger/webapi
+		  .path(MessageResource.class)							//										/messages
+		  .path(Long.toString(message.getId()))					//												 /1
+		  .build()
+		  .toString();
+		return url;
 	}
 	
 	@POST
-	public Message addMessage(Message message) {
-		return messageService.addMessage(message);
+	public Response addMessage(Message message, @Context UriInfo uriInfo) {		
+		Message newMessage = messageService.addMessage(message);
+		
+		String newId = String.valueOf(newMessage.getId());
+		URI uri = uriInfo.getAbsolutePathBuilder().path(newId).build();  // uriInfo.getAbsolutePath() gets the absolute path of uri
+		return	Response.created(uri) // status(Status.CREATED)  //created does the same thing and you can add location too
+						.entity(newMessage)
+						.build();
 	}
 	
 
@@ -71,6 +119,11 @@ public class MessageResource {
 	
 
 
+
+	@Path("/{messageId}/comments")
+	public CommentResource getCommentResource() {
+		return new CommentResource();
+	}
 	
 	
 }
